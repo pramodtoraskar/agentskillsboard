@@ -1,106 +1,88 @@
-# Agent Skills Board — Agent Skill Registry
+# Agent Skills Board
 
-**Agent Skills Board** is the product name for this repository (clone path is often `agentskillsboard/`).
+**Agent Skills Board** is a crawler-first registry and local dashboard for discovering public **Agent Skills**—folders built around `SKILL.md` on GitHub.
 
-A crawler-first registry for SKILL.md files across GitHub.
-No registration required — the crawler finds skills automatically.
+Write skills in the [open Agent Skills format](https://github.com/agentskills/agentskills); run this board when you want **evidence-backed discovery**: search, filters, scoring, and detail views over a JSON index you control—no registration wall and no opaque curation.
 
-## Quick Start
+## Getting started
 
 ```bash
-export GITHUB_TOKEN=ghp_your_token_here   # get from github.com/settings/tokens
+export GITHUB_TOKEN=ghp_your_token_here   # https://github.com/settings/tokens
 bash run.sh
 ```
 
-Open http://localhost:8000
+Open **http://localhost:8000**
 
-## Architecture
+For why the project exists, scope boundaries, and north-star direction, see **[VISION.md](VISION.md)**.
+
+## Ecosystem
+
+| Resource | Role |
+| -------- | ---- |
+| **[Agent Skills (spec & docs)](https://github.com/agentskills/agentskills)** | Open format maintained by Anthropic and the community—what a skill *is*. |
+| **[agentskills.io](https://agentskills.io)** | Documentation and tutorials for the format. |
+| **Agent Skills Board (this repo)** | **Discovery layer**—finds `SKILL.md` in the wild, normalizes metadata, scores signals, and serves API + static UI. |
+
+## What’s in this repository
+
+- **Crawler** — GitHub code search, repo trees, and raw fetches with ETag-friendly caching.
+- **Normalizer** — Front matter parsing, role hints, and transparent scoring.
+- **Index** — `data/skills.json` (and raw crawl output) as a portable, diffable artifact.
+- **API + dashboard** — FastAPI backend and a zero-build-step HTML/CSS/JS UI.
+
+## How it fits together
 
 ```
 GitHub API (code search + repo tree)
         ↓
-  crawler.py          ← finds SKILL.md files, fetches content
+  crawler.py          ← finds SKILL.md paths, fetches content
         ↓
   normalizer.py       ← parses frontmatter, scores skills
         ↓
-  data/skills.json    ← TinyDB flat file store
+  data/skills.json    ← flat index
         ↓
-  api.py              ← FastAPI: search, filter, stats
+  api.py              ← search, filter, stats
         ↓
-  dashboard/          ← HTML/CSS/JS UI, zero build step
+  dashboard/          ← static UI
 ```
 
-## API rate limit strategy (minimum hits)
+## API usage (summary)
 
-| Phase | Strategy | API calls |
-|-------|----------|-----------|
-| Pinned repos | 1 tree call/repo = all SKILL.md paths | ~10 |
-| Official orgs | 1 code search/org | ~20 |
-| Broad search | paginated code search, 100 results/page | ~5 pages |
-| Content fetch | raw.githubusercontent.com (NO API quota) | unlimited |
-| ETag cache | 304 = 0 quota used on re-crawl | — |
+| Phase | Strategy | API calls (order of magnitude) |
+| ----- | -------- | ------------------------------ |
+| Pinned repos | One tree per repo | ~10 |
+| Official orgs | One code search per org | ~20 |
+| Broad search | Paginated code search | a few pages |
+| Content | `raw.githubusercontent.com` | no REST quota |
+| Re-crawl | ETag → `304` saves quota | — |
 
-With GITHUB_TOKEN: 5,000 requests/hour. Full crawl uses ~200-400 calls.
-Without token: 60/hour — use `RATE_LIMIT_DELAY = 2.0` in config.py.
+With `GITHUB_TOKEN`: 5,000 REST requests/hour; a full crawl is typically on the order of **hundreds** of calls. Without a token, stay within unauthenticated limits (for example tune `RATE_LIMIT_DELAY` in `config.py`).
 
-## Scoring formula
+## Scoring (at a glance)
 
-| Signal | Weight | Notes |
-|--------|--------|-------|
-| Official org | 35 | org in OFFICIAL_ORGS list |
-| Stars | 25 | log10-normalised, cap 1000+ |
-| Downloads | 15 | PyPI/npm if available |
-| Recency | 15 | exp decay, half-life 90 days |
-| Has CI | 5 | .github/workflows present |
-| Has tests | 5 | inferred from tags/description |
+Signals include official-org allowlists, stars (log-scaled), package downloads where available, recency, and light CI/tests heuristics. Weights live in **`config.py`** (`SCORE_WEIGHTS`) so you can tune discovery for your org.
 
-## 2-Day Build Plan
-
-### Day 1 — Data pipeline
-- [ ] Set GITHUB_TOKEN
-- [ ] Run `python3 crawler.py` → watch logs, check data/raw_skills.json
-- [ ] Run `python3 normalizer.py` → check top 10 output
-- [ ] Add any missing orgs to OFFICIAL_ORGS in config.py
-- [ ] Add any pinned repos to PINNED_REPOS in config.py
-
-### Day 2 — Dashboard + polish
-- [ ] Run `bash run.sh` → open http://localhost:8000
-- [ ] Verify search, filter, sort all work
-- [ ] Click a skill card → verify detail panel
-- [ ] Click "Re-crawl" → verify background crawl starts
-- [ ] Tune SCORE_WEIGHTS in config.py if scoring feels off
-
-## Extend: add MCP servers
-
-To also index MCP servers from pulsemcp.com:
-
-```python
-# In crawler.py, add after Phase 3:
-async def crawl_pulsemcp(client):
-    r = await client.get("https://www.pulsemcp.com/api/servers")
-    for server in r.json()["servers"]:
-        yield {
-            "name": server["name"],
-            "format": "MCP server",
-            "org": server.get("author",""),
-            ...
-        }
-```
-
-## File structure
+## Repository layout
 
 ```
 agentskillsboard/
-├── config.py           ← all org lists, score weights, settings
-├── crawler.py          ← GitHub crawler (async, ETag-cached)
-├── normalizer.py       ← scoring + role detection
-├── api.py              ← FastAPI server
-├── run.sh              ← one-command start
+├── config.py           ← org lists, score weights, crawler settings
+├── crawler.py
+├── normalizer.py
+├── api.py
+├── run.sh
 ├── requirements.txt
+├── VISION.md           ← intent, scope, roadmap
 ├── data/
-│   ├── raw_skills.json ← crawler output
-│   └── skills.json     ← normalised, scored, sorted
-└── dashboard/
-    └── static/
-        └── index.html  ← full UI, zero build step
+│   ├── raw_skills.json
+│   └── skills.json
+└── dashboard/static/index.html
 ```
+
+## Extending the board
+
+Pinned repos, org allowlists, and score weights are the main knobs today. To index **other** capability shapes (for example MCP server directories), treat them as **explicit** schema and scope—see the “federation” notes in `VISION.md` rather than bolting on undocumented scrapers.
+
+---
+
+*Agent Skills Board focuses on **transparent, local-first discovery** for one family of artifacts (`SKILL.md` skills). The [agentskills](https://github.com/agentskills/agentskills) repository defines the portable format those artifacts follow.*

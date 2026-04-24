@@ -1,8 +1,6 @@
 # Agent Skills Board
 
-**Agent Skills Board** is a crawler-first registry and local dashboard for discovering public **Agent Skills**—folders built around `SKILL.md` on GitHub.
-
-Write skills in the [open Agent Skills format](https://github.com/agentskills/agentskills); run this board when you want **evidence-backed discovery**: search, filters, scoring, and detail views over a JSON index you control—no registration wall and no opaque curation.
+**Agent Skills Board** is a crawler-first registry and local dashboard for discovering public **Agent Skills**—folders built around `SKILL.md` on GitHub—then indexing them for search, filters, scoring, and detail views (`data/skills.json` + API + static UI).
 
 ## Getting started
 

@@ -1,0 +1,773 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="color-scheme" content="dark light">
+<title>Agent Skills Board — Agent Skill Registry</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:wght@300;400;500;600&display=swap');
+
+  :root, html[data-theme="dark"] {
+    --bg:       #0d0f12;
+    --surface:  #13161b;
+    --card:     #1a1e25;
+    --border:   rgba(255,255,255,0.07);
+    --border2:  rgba(255,255,255,0.12);
+    --text:     #e8eaf0;
+    --muted:    #7a8090;
+    --accent:   #4f8ef7;
+    --green:    #3ecf8e;
+    --amber:    #f59e0b;
+    --red:      #f87171;
+    --purple:   #a78bfa;
+    --overlay-scrim: rgba(0,0,0,.55);
+    --kbd-bg:   rgba(255,255,255,.06);
+    --mono:     'DM Mono', monospace;
+    --sans:     'DM Sans', system-ui, sans-serif;
+  }
+
+  html[data-theme="light"] {
+    --bg:       #f4f5f8;
+    --surface:  #ffffff;
+    --card:     #f0f2f6;
+    --border:   rgba(0,0,0,0.08);
+    --border2:  rgba(0,0,0,0.14);
+    --text:     #1a1d24;
+    --muted:    #5c6370;
+    --accent:   #2563eb;
+    --green:    #059669;
+    --amber:    #d97706;
+    --red:      #dc2626;
+    --purple:   #7c3aed;
+    --overlay-scrim: rgba(15,18,25,.45);
+    --kbd-bg:   rgba(0,0,0,.06);
+  }
+
+  @media (prefers-color-scheme: light) {
+    html[data-theme="system"] {
+      --bg:       #f4f5f8;
+      --surface:  #ffffff;
+      --card:     #f0f2f6;
+      --border:   rgba(0,0,0,0.08);
+      --border2:  rgba(0,0,0,0.14);
+      --text:     #1a1d24;
+      --muted:    #5c6370;
+      --accent:   #2563eb;
+      --green:    #059669;
+      --amber:    #d97706;
+      --red:      #dc2626;
+      --purple:   #7c3aed;
+      --overlay-scrim: rgba(15,18,25,.45);
+      --kbd-bg:   rgba(0,0,0,.06);
+    }
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { background: var(--bg); color: var(--text); font-family: var(--sans); font-size: 14px; line-height: 1.6; min-height: 100vh; }
+
+  /* ── Layout ── */
+  .shell { display: grid; grid-template-columns: 220px 1fr; grid-template-rows: auto 1fr; min-height: 100vh; }
+  .topbar { grid-column: 1/-1; padding: 0 20px 0 24px; border-bottom: 1px solid var(--border); background: var(--surface); }
+  .sidebar { border-right: 1px solid var(--border); padding: 20px 16px; background: var(--surface); overflow-y: auto; }
+  .main { padding: 24px; overflow-y: auto; }
+
+  /* ── Topbar ── */
+  .topbar-inner { width: 100%; display: flex; align-items: center; gap: 20px; min-height: 56px; }
+  .topbar-left { display: flex; align-items: center; gap: 12px; flex-shrink: 0; }
+  .topbar-center { flex: 1; display: flex; justify-content: center; min-width: 0; }
+  .topbar-hub { display: flex; align-items: stretch; gap: 0; max-width: 560px; width: 100%; }
+  .search-wrap { flex: 1; min-width: 0; position: relative; }
+  .search-wrap input {
+    width: 100%; height: 38px; background: var(--card);
+    border: 1px solid var(--border2); border-radius: 999px 0 0 999px;
+    border-right: none;
+    padding: 0 72px 0 40px; font-size: 13px; color: var(--text); font-family: var(--sans);
+    outline: none; transition: border .15s, box-shadow .15s;
+  }
+  .search-wrap input:focus { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); z-index: 1; position: relative; }
+  .search-wrap .icon { position: absolute; left: 14px; top: 50%; transform: translateY(-50%); color: var(--muted); display: flex; pointer-events: none; }
+  .search-wrap .icon svg { width: 16px; height: 16px; opacity: .85; }
+  .search-kbd {
+    position: absolute; right: 12px; top: 50%; transform: translateY(-50%);
+    font-family: var(--mono); font-size: 10px; color: var(--muted);
+    padding: 3px 6px; border-radius: 6px; background: var(--kbd-bg); border: 1px solid var(--border);
+    pointer-events: none;
+  }
+  .ask-skill-btn {
+    height: 38px; padding: 0 16px; flex-shrink: 0;
+    display: inline-flex; align-items: center; gap: 8px;
+    font-size: 13px; font-weight: 500; font-family: var(--sans);
+    color: var(--text); background: var(--card);
+    border: 1px solid var(--border2); border-radius: 0 999px 999px 0;
+    cursor: pointer; transition: border .15s, color .15s, background .15s;
+  }
+  .ask-skill-btn:hover { border-color: var(--accent); color: var(--accent); }
+  .ask-skill-btn svg { width: 16px; height: 16px; }
+  .topbar-right { display: flex; align-items: center; gap: 14px; flex-shrink: 0; margin-left: auto; }
+  .crawl-meta { display: flex; align-items: center; gap: 10px; }
+  .github-hub { display: flex; align-items: center; gap: 10px; }
+  .github-hub a {
+    display: inline-flex; align-items: center; gap: 8px; text-decoration: none; color: var(--text);
+    font-size: 13px; font-weight: 500; padding: 6px 10px; border-radius: 8px; transition: background .12s;
+  }
+  .github-hub a:hover { background: var(--card); }
+  .github-hub a svg { width: 18px; height: 18px; flex-shrink: 0; opacity: .9; }
+  .github-stars { display: inline-flex; align-items: center; gap: 4px; color: var(--muted); font-family: var(--mono); font-size: 12px; font-weight: 400; }
+  .github-stars svg { width: 14px; height: 14px; }
+  .theme-wrap { position: relative; }
+  .theme-trigger {
+    width: 38px; height: 38px; border-radius: 10px; border: 1px solid var(--border2);
+    background: transparent; color: var(--text); cursor: pointer;
+    display: flex; align-items: center; justify-content: center; transition: background .12s, border .12s;
+  }
+  .theme-trigger:hover { background: var(--card); border-color: var(--accent); }
+  .theme-trigger svg { width: 18px; height: 18px; }
+  .theme-ico { display: flex; align-items: center; justify-content: center; }
+  .theme-menu {
+    display: none; position: absolute; top: calc(100% + 6px); right: 0; min-width: 160px;
+    background: var(--surface); border: 1px solid var(--border2); border-radius: 10px;
+    padding: 6px; box-shadow: 0 12px 40px var(--overlay-scrim); z-index: 200;
+  }
+  .theme-menu.open { display: block; }
+  .theme-option {
+    width: 100%; text-align: left; display: flex; align-items: center; gap: 10px;
+    padding: 8px 10px; border: none; border-radius: 6px; background: transparent;
+    color: var(--text); font-size: 13px; font-family: var(--sans); cursor: pointer;
+  }
+  .theme-option:hover { background: var(--card); }
+  .theme-option.active { color: var(--accent); }
+  .theme-option svg { width: 16px; height: 16px; opacity: .85; flex-shrink: 0; }
+  .check-mark { width: 14px; margin-left: auto; opacity: 0; font-family: var(--mono); font-size: 12px; }
+  .theme-option.active .check-mark { opacity: 1; }
+
+  .logo { font-family: var(--mono); font-size: 15px; font-weight: 500; letter-spacing: -0.02em; color: var(--text); }
+  .logo em { color: var(--accent); font-style: normal; }
+  .crawl-btn { font-size: 12px; padding: 6px 14px; background: transparent; border: 1px solid var(--border2); border-radius: 6px; color: var(--muted); cursor: pointer; font-family: var(--sans); transition: all .15s; }
+  .crawl-btn:hover { border-color: var(--accent); color: var(--accent); }
+  .crawl-btn.running { color: var(--amber); border-color: var(--amber); }
+  .last-crawl { font-size: 11px; color: var(--muted); white-space: nowrap; }
+
+  .ask-overlay { display: none; position: fixed; inset: 0; background: var(--overlay-scrim); z-index: 150; align-items: center; justify-content: center; }
+  .ask-overlay.open { display: flex; }
+  .ask-panel {
+    background: var(--surface); border: 1px solid var(--border2); border-radius: 14px;
+    width: 480px; max-width: 92vw; padding: 24px; position: relative;
+    box-shadow: 0 24px 80px rgba(0,0,0,.35);
+  }
+  .ask-panel h2 { font-size: 17px; font-weight: 600; margin-bottom: 8px; display: flex; align-items: center; gap: 10px; }
+  .ask-panel p { font-size: 13px; color: var(--muted); margin-bottom: 16px; line-height: 1.55; }
+  .ask-panel textarea {
+    width: 100%; min-height: 100px; resize: vertical; padding: 12px 14px; border-radius: 10px;
+    border: 1px solid var(--border2); background: var(--card); color: var(--text); font-family: var(--sans); font-size: 13px;
+    margin-bottom: 14px; outline: none;
+  }
+  .ask-panel textarea:focus { border-color: var(--accent); }
+  .ask-actions { display: flex; gap: 10px; justify-content: flex-end; flex-wrap: wrap; }
+  .ask-actions button {
+    font-size: 13px; padding: 8px 16px; border-radius: 8px; font-family: var(--sans); cursor: pointer; border: 1px solid var(--border2);
+    background: transparent; color: var(--muted);
+  }
+  .ask-actions button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .ask-actions button.primary:hover { filter: brightness(1.08); }
+  .ask-close { position: absolute; top: 14px; right: 14px; background: none; border: none; color: var(--muted); font-size: 20px; cursor: pointer; line-height: 1; }
+
+  /* ── Sidebar ── */
+  .sidebar-section { margin-bottom: 24px; }
+  .sidebar-label { font-size: 10px; font-weight: 600; letter-spacing: .08em; color: var(--muted); text-transform: uppercase; margin-bottom: 8px; }
+  .filter-group { display: flex; flex-direction: column; gap: 2px; }
+  .filter-item { display: flex; align-items: center; justify-content: space-between; padding: 5px 8px; border-radius: 6px; cursor: pointer; font-size: 13px; color: var(--muted); transition: all .12s; }
+  .filter-item:hover { background: var(--card); color: var(--text); }
+  .filter-item.active { background: rgba(79,142,247,.12); color: var(--accent); }
+  .filter-count { font-family: var(--mono); font-size: 11px; background: var(--card); padding: 1px 6px; border-radius: 10px; }
+
+  /* ── Stats bar ── */
+  .stats-bar { display: flex; gap: 12px; margin-bottom: 20px; flex-wrap: wrap; }
+  .stat-pill { background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 10px 16px; display: flex; flex-direction: column; gap: 2px; min-width: 110px; }
+  .stat-n { font-family: var(--mono); font-size: 20px; font-weight: 500; color: var(--text); }
+  .stat-l { font-size: 11px; color: var(--muted); }
+
+  /* ── Sort tabs ── */
+  .sort-row { display: flex; gap: 6px; margin-bottom: 16px; align-items: center; }
+  .sort-tab { font-size: 12px; padding: 4px 12px; border-radius: 20px; border: 1px solid var(--border); cursor: pointer; color: var(--muted); background: transparent; font-family: var(--sans); transition: all .12s; }
+  .sort-tab:hover { border-color: var(--border2); color: var(--text); }
+  .sort-tab.active { background: rgba(79,142,247,.15); border-color: var(--accent); color: var(--accent); }
+  .result-count { margin-left: auto; font-size: 12px; color: var(--muted); font-family: var(--mono); }
+
+  /* ── Skill grid ── */
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 12px; }
+
+  .skill-card { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 16px; cursor: pointer; transition: border .15s, transform .1s; display: flex; flex-direction: column; gap: 10px; }
+  .skill-card:hover { border-color: var(--border2); transform: translateY(-1px); }
+
+  .card-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; }
+  .card-name { font-family: var(--mono); font-size: 13px; font-weight: 500; color: var(--text); }
+  .card-org { font-size: 11px; color: var(--muted); margin-top: 2px; }
+  .official-dot { display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: var(--green); margin-right: 4px; vertical-align: middle; }
+
+  .fmt-badge { font-size: 10px; font-weight: 500; padding: 2px 8px; border-radius: 4px; white-space: nowrap; font-family: var(--mono); flex-shrink: 0; }
+  .fmt-skill { background: rgba(79,142,247,.15); color: var(--accent); }
+  .fmt-mcp   { background: rgba(62,207,142,.12); color: var(--green); }
+  .fmt-both  { background: rgba(167,139,250,.12); color: var(--purple); }
+
+  .card-desc { font-size: 12px; color: var(--muted); line-height: 1.55; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; flex: 1; }
+
+  .card-tags { display: flex; flex-wrap: wrap; gap: 4px; }
+  .tag { font-size: 10px; padding: 2px 7px; border-radius: 4px; background: rgba(255,255,255,.05); color: var(--muted); font-family: var(--mono); }
+
+  .card-footer { display: flex; align-items: center; gap: 10px; font-size: 11px; color: var(--muted); }
+  .stars { color: var(--amber); }
+  .score-wrap { margin-left: auto; display: flex; align-items: center; gap: 6px; }
+  .score-bar { width: 48px; height: 3px; background: rgba(255,255,255,.08); border-radius: 2px; overflow: hidden; }
+  .score-fill { height: 100%; border-radius: 2px; background: var(--accent); }
+  .score-num { font-family: var(--mono); font-size: 11px; }
+  .new-tag { font-size: 10px; padding: 1px 6px; border-radius: 4px; background: rgba(248,113,113,.12); color: var(--red); font-family: var(--mono); }
+  .role-badge { font-size: 10px; padding: 1px 6px; border-radius: 4px; background: rgba(167,139,250,.1); color: var(--purple); font-family: var(--mono); }
+
+  /* ── Detail panel ── */
+  .detail-overlay { display: none; position: fixed; inset: 0; background: var(--overlay-scrim); z-index: 100; align-items: center; justify-content: center; }
+  .detail-overlay.open { display: flex; }
+  .detail-panel { background: var(--surface); border: 1px solid var(--border2); border-radius: 12px; width: 640px; max-width: 95vw; max-height: 85vh; overflow-y: auto; padding: 28px; position: relative; }
+  .detail-close { position: absolute; top: 16px; right: 16px; background: none; border: none; color: var(--muted); font-size: 20px; cursor: pointer; line-height: 1; }
+  .detail-name { font-family: var(--mono); font-size: 18px; font-weight: 500; margin-bottom: 4px; }
+  .detail-org  { font-size: 13px; color: var(--muted); margin-bottom: 16px; }
+  .detail-desc { font-size: 13px; color: var(--text); line-height: 1.7; margin-bottom: 16px; }
+  .detail-meta { display: flex; flex-wrap: wrap; gap: 10px; font-size: 12px; margin-bottom: 20px; }
+  .meta-item { display: flex; flex-direction: column; gap: 2px; }
+  .meta-k { font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; }
+  .meta-v { font-family: var(--mono); color: var(--text); }
+  .install-block { background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 12px 16px; font-family: var(--mono); font-size: 12px; color: var(--green); white-space: pre-wrap; word-break: break-all; }
+  .detail-links { display: flex; gap: 10px; margin-top: 16px; flex-wrap: wrap; }
+  .link-btn { font-size: 12px; padding: 6px 14px; border-radius: 6px; border: 1px solid var(--border2); color: var(--muted); text-decoration: none; font-family: var(--sans); transition: all .15s; }
+  .link-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+  /* ── Empty state ── */
+  .empty { text-align: center; padding: 60px 20px; color: var(--muted); }
+  .empty h3 { font-size: 16px; margin-bottom: 8px; color: var(--text); }
+
+  /* ── Loader ── */
+  .loader { text-align: center; padding: 40px; color: var(--muted); font-family: var(--mono); font-size: 13px; }
+  @keyframes pulse { 0%,100%{opacity:.4} 50%{opacity:1} }
+  .loader::after { content: '...'; animation: pulse 1.2s infinite; }
+
+  /* ── Responsive ── */
+  @media (max-width: 900px) {
+    .topbar-inner { flex-wrap: wrap; row-gap: 12px; padding: 10px 0; }
+    .topbar-center { order: 3; flex: 1 1 100%; max-width: none; }
+    .topbar-hub { max-width: none; }
+    .topbar-right { margin-left: 0; flex: 1 1 auto; justify-content: flex-end; flex-wrap: wrap; }
+  }
+
+  @media (max-width: 768px) {
+    .shell { grid-template-columns: 1fr; }
+    .sidebar { display: none; }
+    .topbar { padding: 0 12px 0 16px; }
+    .main { padding: 16px; }
+    .github-hub a span#repo-slug-label { max-width: 140px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  }
+</style>
+<script>
+(function(){
+  try {
+    var t = localStorage.getItem('asb-theme');
+    document.documentElement.setAttribute('data-theme', (t === 'light' || t === 'dark' || t === 'system') ? t : 'dark');
+  } catch (e) { document.documentElement.setAttribute('data-theme', 'dark'); }
+})();
+</script>
+</head>
+<body>
+<div class="shell">
+
+  <!-- Top bar -->
+  <header class="topbar">
+    <div class="topbar-inner">
+      <div class="topbar-left">
+        <div class="logo">Agent Skills Board</div>
+      </div>
+      <div class="topbar-center">
+        <div class="topbar-hub">
+          <div class="search-wrap">
+            <span class="icon" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg></span>
+            <input type="text" id="search" placeholder="Search…" autocomplete="off" aria-label="Search skills">
+            <span class="search-kbd" id="search-kbd-hint" title="Focus search">⌘K</span>
+          </div>
+          <button type="button" class="ask-skill-btn" id="ask-skill-btn" onclick="openAskSkill()" aria-haspopup="dialog" aria-controls="ask-panel">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M9.4 18.6 8 21l-1.4-2.4L4 17l2.4-1.4L8 13l1.4 2.4L12 17l-2.4 1.4zm9.9-9.9L16 12l-3.3-1.7L11 7l1.7 3.3L16 12l3.3-1.7L21 7l-1.7 3.3zM11 7 8.5 3 6 7l4.5 1L11 7zm2 10 2.5 4L18 17l-4.5-1L13 17z"/></svg>
+            AskSkill
+          </button>
+        </div>
+      </div>
+      <div class="topbar-right">
+        <div class="crawl-meta">
+          <span class="last-crawl" id="last-crawl">loading…</span>
+          <button class="crawl-btn" id="crawl-btn" onclick="triggerCrawl()">↻ Re-crawl</button>
+        </div>
+        <div class="github-hub">
+          <a id="repo-link" href="https://github.com/agentskills/agentskills" target="_blank" rel="noopener noreferrer" title="View repository on GitHub">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/></svg>
+            <span id="repo-slug-label">agentskills/agentskills</span>
+            <span class="github-stars" aria-label="GitHub stars"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg><span id="repo-stars">—</span></span>
+          </a>
+        </div>
+        <div class="theme-wrap">
+          <button type="button" class="theme-trigger" id="theme-trigger" onclick="toggleThemeMenu(event)" aria-expanded="false" aria-haspopup="true" aria-label="Color theme">
+            <span class="theme-ico" id="ico-theme-dark" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg></span>
+            <span class="theme-ico" id="ico-theme-light" style="display:none" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg></span>
+          </button>
+          <div class="theme-menu" id="theme-menu" role="menu" aria-label="Theme">
+            <button type="button" class="theme-option" data-theme-pick="dark" role="menuitem" onclick="setColorTheme('dark')">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+              Dark<span class="check-mark">✓</span>
+            </button>
+            <button type="button" class="theme-option" data-theme-pick="light" role="menuitem" onclick="setColorTheme('light')">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
+              Light<span class="check-mark">✓</span>
+            </button>
+            <button type="button" class="theme-option" data-theme-pick="system" role="menuitem" onclick="setColorTheme('system')">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>
+              System<span class="check-mark">✓</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <div class="sidebar-section">
+      <div class="sidebar-label">Sort by</div>
+      <div class="filter-group" id="sort-filters">
+        <div class="filter-item active" data-sort="score" onclick="setSort(this)">Top scored</div>
+        <div class="filter-item" data-sort="stars" onclick="setSort(this)">Most starred</div>
+        <div class="filter-item" data-sort="recency" onclick="setSort(this)">Recently updated</div>
+        <div class="filter-item" data-sort="new" onclick="setSort(this)">Newly discovered</div>
+      </div>
+    </div>
+
+    <div class="sidebar-section">
+      <div class="sidebar-label">Source</div>
+      <div class="filter-group">
+        <div class="filter-item active" data-official="" onclick="setOfficial(this, null)">All</div>
+        <div class="filter-item" data-official="true" onclick="setOfficial(this, true)">
+          <span><span class="official-dot"></span>Official only</span>
+        </div>
+        <div class="filter-item" data-official="false" onclick="setOfficial(this, false)">Community</div>
+      </div>
+    </div>
+
+    <div class="sidebar-section">
+      <div class="sidebar-label">Role</div>
+      <div class="filter-group" id="role-filters"></div>
+    </div>
+
+    <div class="sidebar-section">
+      <div class="sidebar-label">Category</div>
+      <div class="filter-group" id="cat-filters"></div>
+    </div>
+  </aside>
+
+  <!-- Main content -->
+  <main class="main">
+    <!-- Stats -->
+    <div class="stats-bar" id="stats-bar">
+      <div class="stat-pill"><div class="stat-n" id="s-total">—</div><div class="stat-l">Skills indexed</div></div>
+      <div class="stat-pill"><div class="stat-n" id="s-official">—</div><div class="stat-l">Official</div></div>
+      <div class="stat-pill"><div class="stat-n" id="s-community">—</div><div class="stat-l">Community</div></div>
+      <div class="stat-pill"><div class="stat-n" id="s-cats">—</div><div class="stat-l">Categories</div></div>
+    </div>
+
+    <!-- Grid -->
+    <div id="grid" class="grid">
+      <div class="loader">Fetching skills</div>
+    </div>
+
+    <!-- Load more -->
+    <div style="text-align:center;margin-top:20px">
+      <button id="load-more" style="display:none;font-size:12px;padding:8px 20px;border-radius:6px;border:1px solid var(--border2);color:var(--muted);background:transparent;cursor:pointer;font-family:var(--sans)" onclick="loadMore()">Load more</button>
+    </div>
+  </main>
+</div>
+
+<!-- AskSkill overlay -->
+<div class="ask-overlay" id="ask-overlay" onclick="closeAskSkill(event)">
+  <div class="ask-panel" id="ask-panel" role="dialog" aria-labelledby="ask-title" aria-modal="true" onclick="event.stopPropagation()">
+    <button type="button" class="ask-close" onclick="closeAskSkillOverlay()" aria-label="Close">✕</button>
+    <h2 id="ask-title"><svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="currentColor" style="opacity:.9"><path d="M9.4 18.6 8 21l-1.4-2.4L4 17l2.4-1.4L8 13l1.4 2.4L12 17l-2.4 1.4zm9.9-9.9L16 12l-3.3-1.7L11 7l1.7 3.3L16 12l3.3-1.7L21 7l-1.7 3.3zM11 7 8.5 3 6 7l4.5 1L11 7zm2 10 2.5 4L18 17l-4.5-1L13 17z"/></svg> AskSkill</h2>
+    <p>Describe what you are trying to do in plain language. For now, your question is copied into the board search so you can browse matching skills. A dedicated skill-matching assistant can be wired here later.</p>
+    <textarea id="ask-textarea" placeholder="e.g. How do I connect Jira to my agent workflow?" aria-label="Your question"></textarea>
+    <div class="ask-actions">
+      <button type="button" onclick="closeAskSkillOverlay()">Cancel</button>
+      <button type="button" class="primary" onclick="submitAskSkill()">Search board</button>
+    </div>
+  </div>
+</div>
+
+<!-- Detail overlay -->
+<div class="detail-overlay" id="overlay" onclick="closeDetail(event)">
+  <div class="detail-panel" id="detail-panel">
+    <button class="detail-close" onclick="closeOverlay()">✕</button>
+    <div id="detail-content"></div>
+  </div>
+</div>
+
+<script>
+const API = '';   // same origin
+const GITHUB_REPO_SLUG = 'agentskills/agentskills';   // change to your org/repo for the header link + star count
+let state = { q:'', sort:'score', official:null, role:'', category:'', offset:0, total:0 };
+let debounceTimer;
+let themeMenuOpen = false;
+let systemThemeMql = window.matchMedia('(prefers-color-scheme: light)');
+
+function isEffectiveLightTheme() {
+  const mode = document.documentElement.getAttribute('data-theme') || 'dark';
+  if (mode === 'light') return true;
+  if (mode === 'dark') return false;
+  return systemThemeMql.matches;
+}
+
+function renderThemeTriggerIcons() {
+  const light = isEffectiveLightTheme();
+  const darkIco = document.getElementById('ico-theme-dark');
+  const lightIco = document.getElementById('ico-theme-light');
+  if (darkIco && lightIco) {
+    darkIco.style.display = light ? 'none' : 'flex';
+    lightIco.style.display = light ? 'flex' : 'none';
+  }
+}
+
+function syncThemeMenuCheckmarks(mode) {
+  document.querySelectorAll('.theme-option').forEach(function (btn) {
+    btn.classList.toggle('active', btn.getAttribute('data-theme-pick') === mode);
+  });
+}
+
+function closeThemeMenu() {
+  var m = document.getElementById('theme-menu');
+  var t = document.getElementById('theme-trigger');
+  if (m) m.classList.remove('open');
+  if (t) t.setAttribute('aria-expanded', 'false');
+  themeMenuOpen = false;
+}
+
+function toggleThemeMenu(ev) {
+  ev.stopPropagation();
+  var m = document.getElementById('theme-menu');
+  var t = document.getElementById('theme-trigger');
+  themeMenuOpen = !themeMenuOpen;
+  if (m) m.classList.toggle('open', themeMenuOpen);
+  if (t) t.setAttribute('aria-expanded', themeMenuOpen ? 'true' : 'false');
+}
+
+function setColorTheme(mode) {
+  document.documentElement.setAttribute('data-theme', mode);
+  try { localStorage.setItem('asb-theme', mode); } catch (e) {}
+  syncThemeMenuCheckmarks(mode);
+  renderThemeTriggerIcons();
+  closeThemeMenu();
+}
+
+document.addEventListener('click', function (e) {
+  if (!e.target.closest('.theme-wrap')) closeThemeMenu();
+});
+
+function initThemeListeners() {
+  syncThemeMenuCheckmarks(document.documentElement.getAttribute('data-theme') || 'dark');
+  renderThemeTriggerIcons();
+  try {
+    systemThemeMql.addEventListener('change', function () {
+      if ((document.documentElement.getAttribute('data-theme') || '') === 'system') renderThemeTriggerIcons();
+    });
+  } catch (e) {
+    systemThemeMql.addListener(function () {
+      if ((document.documentElement.getAttribute('data-theme') || '') === 'system') renderThemeTriggerIcons();
+    });
+  }
+}
+
+function initSearchKbdHint() {
+  var hint = document.getElementById('search-kbd-hint');
+  if (!hint) return;
+  var mac = /Mac|iPhone|iPod|iPad/i.test(navigator.platform) || (navigator.userAgentData && navigator.userAgentData.platform === 'macOS');
+  hint.textContent = mac ? '⌘K' : 'Ctrl+K';
+}
+
+async function loadRepoStars() {
+  var starEl = document.getElementById('repo-stars');
+  var linkEl = document.getElementById('repo-link');
+  var slugEl = document.getElementById('repo-slug-label');
+  if (slugEl) slugEl.textContent = GITHUB_REPO_SLUG;
+  if (linkEl) linkEl.href = 'https://github.com/' + GITHUB_REPO_SLUG;
+  if (!starEl) return;
+  try {
+    var r = await fetch('https://api.github.com/repos/' + GITHUB_REPO_SLUG);
+    if (!r.ok) return;
+    var d = await r.json();
+    if (typeof d.stargazers_count === 'number') starEl.textContent = d.stargazers_count.toLocaleString();
+  } catch (err) { /* ignore */ }
+}
+
+function openAskSkill() {
+  var o = document.getElementById('ask-overlay');
+  if (o) {
+    o.classList.add('open');
+    var ta = document.getElementById('ask-textarea');
+    if (ta) setTimeout(function () { ta.focus(); }, 10);
+  }
+}
+
+function closeAskSkillOverlay() {
+  var o = document.getElementById('ask-overlay');
+  if (o) o.classList.remove('open');
+}
+
+function closeAskSkill(ev) {
+  if (ev.target === document.getElementById('ask-overlay')) closeAskSkillOverlay();
+}
+
+function submitAskSkill() {
+  var ta = document.getElementById('ask-textarea');
+  var q = (ta && ta.value) ? ta.value.trim() : '';
+  var input = document.getElementById('search');
+  if (input) input.value = q;
+  state.q = q;
+  loadSkills();
+  closeAskSkillOverlay();
+}
+
+// ── Fetch helpers ──────────────────────────────────────────────────────────
+
+async function apiFetch(path) {
+  const r = await fetch(API + path);
+  return r.json();
+}
+
+function buildQuery() {
+  const p = new URLSearchParams({ sort: state.sort, limit: 50, offset: state.offset });
+  if (state.q)        p.set('q', state.q);
+  if (state.category) p.set('category', state.category);
+  if (state.role)     p.set('role', state.role);
+  if (state.official !== null) p.set('official', state.official);
+  return '/api/skills?' + p.toString();
+}
+
+// ── Render skills ──────────────────────────────────────────────────────────
+
+function fmtStars(n) { return n >= 1000 ? (n/1000).toFixed(1)+'k' : n; }
+
+function badgeClass(fmt) {
+  if (fmt === 'MCP server') return 'fmt-mcp';
+  if (fmt === 'both')       return 'fmt-both';
+  return 'fmt-skill';
+}
+
+function isRecent(pushed_at) {
+  if (!pushed_at) return false;
+  const age = (Date.now() - new Date(pushed_at)) / 86400000;
+  return age < 14;
+}
+
+function renderCard(s) {
+  const tags = (s.tags || []).slice(0, 4).map(t => `<span class="tag">${t}</span>`).join('');
+  const role = (s.roles || [])[0] || '';
+  const recent = isRecent(s.pushed_at);
+  return `
+  <div class="skill-card" onclick="showDetail('${s.id}')">
+    <div class="card-header">
+      <div>
+        <div class="card-name">${s.name}</div>
+        <div class="card-org">
+          ${s.is_official ? '<span class="official-dot"></span>' : ''}${s.org}
+          ${recent ? '<span class="new-tag" style="margin-left:6px">new</span>' : ''}
+        </div>
+      </div>
+      <span class="fmt-badge ${badgeClass(s.format)}">${s.format}</span>
+    </div>
+    <div class="card-desc">${s.description || s.repo_desc || '—'}</div>
+    ${tags ? `<div class="card-tags">${tags}</div>` : ''}
+    <div class="card-footer">
+      <span class="stars">★ ${fmtStars(s.stars || 0)}</span>
+      ${role ? `<span class="role-badge">${role}</span>` : ''}
+      <div class="score-wrap">
+        <div class="score-bar"><div class="score-fill" style="width:${s.score}%"></div></div>
+        <span class="score-num">${s.score}</span>
+      </div>
+    </div>
+  </div>`;
+}
+
+async function loadSkills(append = false) {
+  if (!append) {
+    state.offset = 0;
+    document.getElementById('grid').innerHTML = '<div class="loader">Fetching skills</div>';
+  }
+  const data = await apiFetch(buildQuery());
+  state.total = data.total;
+
+  const grid = document.getElementById('grid');
+  if (!append) grid.innerHTML = '';
+
+  if (!data.skills || data.skills.length === 0) {
+    if (!append) grid.innerHTML = '<div class="empty"><h3>No skills found</h3><p>Try a different search or filter</p></div>';
+    document.getElementById('load-more').style.display = 'none';
+    return;
+  }
+
+  grid.insertAdjacentHTML('beforeend', data.skills.map(renderCard).join(''));
+  const showing = (state.offset + data.skills.length);
+  document.getElementById('load-more').style.display = showing < state.total ? 'block' : 'none';
+}
+
+function loadMore() {
+  state.offset += 50;
+  loadSkills(true);
+}
+
+// ── Stats ──────────────────────────────────────────────────────────────────
+
+async function loadStats() {
+  const d = await apiFetch('/api/stats');
+  document.getElementById('s-total').textContent    = d.total?.toLocaleString() || '0';
+  document.getElementById('s-official').textContent = d.official || '0';
+  document.getElementById('s-community').textContent= d.community || '0';
+  document.getElementById('s-cats').textContent     = Object.keys(d.categories || {}).length;
+
+  if (d.crawling) {
+    const btn = document.getElementById('crawl-btn');
+    btn.textContent = '↻ Crawling…';
+    btn.classList.add('running');
+  }
+
+  // Populate role filters
+  const roles = Object.entries(d.roles || {}).sort((a,b) => b[1]-a[1]);
+  const roleEl = document.getElementById('role-filters');
+  roleEl.innerHTML = `<div class="filter-item active" onclick="setRole(this,'')">All <span class="filter-count">${d.total}</span></div>` +
+    roles.map(([r,c]) => `<div class="filter-item" onclick="setRole(this,'${r}')">${r} <span class="filter-count">${c}</span></div>`).join('');
+
+  // Populate category filters
+  const cats = Object.entries(d.categories || {}).sort((a,b) => b[1]-a[1]);
+  const catEl = document.getElementById('cat-filters');
+  catEl.innerHTML = `<div class="filter-item active" onclick="setCategory(this,'')">All <span class="filter-count">${d.total}</span></div>` +
+    cats.map(([c,n]) => `<div class="filter-item" onclick="setCategory(this,'${c}')">${c} <span class="filter-count">${n}</span></div>`).join('');
+}
+
+// ── Filter controls ────────────────────────────────────────────────────────
+
+document.getElementById('search').addEventListener('input', e => {
+  clearTimeout(debounceTimer);
+  debounceTimer = setTimeout(() => {
+    state.q = e.target.value.trim();
+    loadSkills();
+  }, 300);
+});
+
+function setSort(el) {
+  document.querySelectorAll('#sort-filters .filter-item').forEach(e => e.classList.remove('active'));
+  el.classList.add('active');
+  state.sort = el.dataset.sort;
+  loadSkills();
+}
+
+function setOfficial(el, val) {
+  document.querySelectorAll('[data-official]').forEach(e => e.classList.remove('active'));
+  el.classList.add('active');
+  state.official = val;
+  loadSkills();
+}
+
+function setRole(el, val) {
+  document.querySelectorAll('#role-filters .filter-item').forEach(e => e.classList.remove('active'));
+  el.classList.add('active');
+  state.role = val;
+  loadSkills();
+}
+
+function setCategory(el, val) {
+  document.querySelectorAll('#cat-filters .filter-item').forEach(e => e.classList.remove('active'));
+  el.classList.add('active');
+  state.category = val;
+  loadSkills();
+}
+
+// ── Detail panel ───────────────────────────────────────────────────────────
+
+async function showDetail(id) {
+  const s = await apiFetch(`/api/skills/${id}`);
+  const tags = (s.tags || []).map(t => `<span class="tag">${t}</span>`).join('');
+  const roles= (s.roles || []).map(r => `<span class="role-badge">${r}</span>`).join('');
+  const installCmd = s.format === 'SKILL.md'
+    ? `# Copy SKILL.md to your agent workspace\ncurl -L ${s.raw_url} -o ~/.openclaw/skills/${s.name}/SKILL.md`
+    : `# Add to your MCP config\n{\n  "mcpServers": {\n    "${s.name}": {\n      "command": "npx",\n      "args": ["-y", "${s.org}/${s.name}"]\n    }\n  }\n}`;
+
+  document.getElementById('detail-content').innerHTML = `
+    <div class="detail-name">${s.name} ${s.is_official ? '<span class="official-dot"></span>' : ''}</div>
+    <div class="detail-org">${s.org} / ${s.repo}</div>
+    <div style="margin-bottom:12px;display:flex;gap:6px;flex-wrap:wrap">
+      <span class="fmt-badge ${badgeClass(s.format)}">${s.format}</span>
+      ${roles}
+      ${tags}
+    </div>
+    <div class="detail-desc">${s.description || s.repo_desc || 'No description available.'}</div>
+    <div class="detail-meta">
+      <div class="meta-item"><span class="meta-k">Score</span><span class="meta-v">${s.score}/100</span></div>
+      <div class="meta-item"><span class="meta-k">Stars</span><span class="meta-v">★ ${fmtStars(s.stars||0)}</span></div>
+      <div class="meta-item"><span class="meta-k">Category</span><span class="meta-v">${s.category||'—'}</span></div>
+      <div class="meta-item"><span class="meta-k">Language</span><span class="meta-v">${s.language||'—'}</span></div>
+      <div class="meta-item"><span class="meta-k">License</span><span class="meta-v">${s.license||'—'}</span></div>
+      <div class="meta-item"><span class="meta-k">Last commit</span><span class="meta-v">${s.pushed_at ? new Date(s.pushed_at).toLocaleDateString() : '—'}</span></div>
+      <div class="meta-item"><span class="meta-k">Official</span><span class="meta-v">${s.is_official ? '✓ yes' : 'community'}</span></div>
+      <div class="meta-item"><span class="meta-k">CI</span><span class="meta-v">${s.has_ci ? '✓ yes' : 'no'}</span></div>
+    </div>
+    <div class="sidebar-label" style="margin-bottom:8px">Quick install</div>
+    <div class="install-block">${installCmd}</div>
+    <div class="detail-links">
+      <a class="link-btn" href="${s.github_url}" target="_blank">View on GitHub ↗</a>
+      <a class="link-btn" href="${s.raw_url}" target="_blank">Raw SKILL.md ↗</a>
+    </div>`;
+  document.getElementById('overlay').classList.add('open');
+}
+
+function closeDetail(e) {
+  if (e.target === document.getElementById('overlay')) closeOverlay();
+}
+function closeOverlay() {
+  document.getElementById('overlay').classList.remove('open');
+}
+document.addEventListener('keydown', function (e) {
+  if (e.key === 'Escape') {
+    closeOverlay();
+    closeAskSkillOverlay();
+    closeThemeMenu();
+  }
+  if ((e.metaKey || e.ctrlKey) && (e.key === 'k' || e.key === 'K')) {
+    e.preventDefault();
+    var s = document.getElementById('search');
+    if (s) s.focus();
+  }
+});
+
+// ── Crawl trigger ──────────────────────────────────────────────────────────
+
+async function triggerCrawl() {
+  const btn = document.getElementById('crawl-btn');
+  btn.textContent = '↻ Starting…';
+  btn.classList.add('running');
+  await fetch('/api/crawl', { method: 'POST' });
+  setTimeout(loadStats, 2000);
+}
+
+// ── Init ───────────────────────────────────────────────────────────────────
+
+(async () => {
+  initThemeListeners();
+  initSearchKbdHint();
+  loadRepoStars();
+  await loadStats();
+  await loadSkills();
+  document.getElementById('last-crawl').textContent = 'Updated: ' + new Date().toLocaleTimeString();
+  // Refresh stats every 30s during crawl
+  setInterval(loadStats, 30000);
+})();
+</script>
+</body>
+</html>

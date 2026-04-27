@@ -1,0 +1,30 @@
+[
+  {
+    "id": "test123",
+    "name": "test-skill",
+    "org": "anthropics",
+    "repo": "skills",
+    "path": "test.skill.md",
+    "raw_url": "https://raw.githubusercontent.com/anthropics/skills/HEAD/test.skill.md",
+    "github_url": "https://github.com/anthropics/skills/blob/HEAD/test.skill.md",
+    "description": "Test skill",
+    "tags": [
+      "test"
+    ],
+    "roles": [
+      "general"
+    ],
+    "stars": 0,
+    "forks": 0,
+    "pushed_at": "2024-01-01T00:00:00Z",
+    "language": "",
+    "license": "",
+    "topics": [],
+    "repo_desc": "",
+    "is_official": true,
+    "has_ci": false,
+    "format": "SKILL.md",
+    "score": 0,
+    "crawled_at": "2024-01-01T00:00:00Z"
+  }
+]
